@@ -1,13 +1,13 @@
 # Logement · Portal
 
 Portal da **Logement Administradora**. É o front da
-[`convivium-api`](https://github.com/CaiioRodrigues/convivium-api): síndico e
+[`logement-api`](https://github.com/CaiioRodrigues/logement-api): síndico e
 conselho acompanham caixa, rateio e inadimplência; o morador vê os próprios
 boletos e paga por PIX.
 
-> O repositório continua com o nome antigo, `convivium-web`. É identificador
-> interno: renomear no GitHub quebraria o `git remote` de todo mundo e as
-> URLs já publicadas, sem mudar uma linha do que o morador vê.
+> As pastas e os imports internos continuam com o nome antigo, `convivium`.
+> É identificador, não marca: renomear não muda uma linha do que o morador
+> vê e levaria junto todo o histórico de `git blame`.
 
 **Next.js 16** (App Router) · React 19 · Tailwind 4 · Recharts.
 
@@ -30,7 +30,7 @@ Se preferir instalar por fora, `npm install -g pnpm` também serve. No Windows,
 A API precisa estar no ar primeiro:
 
 ```bash
-# No repositório convivium-api
+# No repositório logement-api
 docker compose up -d                         # ou um Postgres proprio, veja o README de la
 dotnet run --project src/Convivium.Api      # http://localhost:5080
 ```
@@ -46,7 +46,7 @@ pnpm dev                                     # http://localhost:3000
 
 | Variável | Para quê | Padrão |
 |---|---|---|
-| `API_BASE_URL` | Endereço do convivium-api | `http://localhost:5080` |
+| `API_BASE_URL` | Endereço da API | `http://localhost:5080` |
 
 Sem prefixo `NEXT_PUBLIC` de propósito: quem fala com a API é sempre o
 servidor do Next, então o endereço nunca vai para o pacote do navegador.
@@ -87,7 +87,7 @@ separa o servidor e só as dependências que o código importa de verdade — 43
 em vez dos quase 500 MB do `node_modules`.
 
 A pilha completa (banco, API, portal e proxy com HTTPS) vive no repositório da
-API, em `convivium-api/deploy/`. Os dois repositórios precisam estar lado a
+API, em `logement-api/deploy/`. Os dois repositórios precisam estar lado a
 lado, porque o `docker compose` de lá constrói a imagem daqui.
 
 ## Telas
