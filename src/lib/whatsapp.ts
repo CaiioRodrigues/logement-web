@@ -42,6 +42,8 @@ export interface CobrancaParaEnvio {
   valor: string;
   morador: string | null;
   link: string;
+  /** Linha digitável do boleto registrado, para pagar sem abrir o link. */
+  linhaDigitavel?: string | null;
 }
 
 /**
@@ -62,6 +64,9 @@ export function mensagemDoBoleto(cobranca: CobrancaParaEnvio): string {
     `Competência: ${cobranca.competencia}`,
     `Vencimento: ${cobranca.vencimento}`,
     `Valor: ${cobranca.valor}`,
+    // A linha digitavel vai no texto porque e o que se cola no aplicativo do
+    // banco: na imagem ela seria so para ler, e 47 digitos ninguem redigita.
+    ...(cobranca.linhaDigitavel ? ['', 'Linha digitável:', cobranca.linhaDigitavel] : []),
     '',
     `Boleto e PIX: ${cobranca.link}`,
   ].join('\n');

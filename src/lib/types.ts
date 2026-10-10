@@ -292,6 +292,72 @@ export interface Charge {
   interest: number;
   totalWithLateCharges: number;
   items: ChargeItem[];
+  /** Boleto registrado em banco. Nulo quando a cobrança é só PIX. */
+  slip?: BankSlip | null;
+}
+
+// --- Boleto registrado ---
+
+export type BoletoState = 'Pending' | 'Registered' | 'Paid' | 'Cancelled' | 'Expired';
+
+export type BoletoProvider = 'None' | 'Inter';
+
+export interface BankSlip {
+  state: BoletoState;
+  /** Linha digitável pontuada, pronta para copiar. */
+  digitableLine: string | null;
+  barcode: string | null;
+  ourNumber: string | null;
+  issuedAt: string | null;
+  syncedAt: string | null;
+  /** A emissão pode ter chegado ao banco sem resposta: conferir no internet banking. */
+  needsBankCheck: boolean;
+}
+
+/** Banco do condomínio como a API devolve: sem nenhum segredo. */
+export interface BoletoSettings {
+  provider: BoletoProvider;
+  sandbox: boolean;
+  clientId: string | null;
+  hasClientSecret: boolean;
+  hasCertificate: boolean;
+  certificateSubject: string | null;
+  certificateExpiresAt: string | null;
+  checkingAccount: string | null;
+  daysOnAgenda: number;
+  instructions: string | null;
+  bankAccountId: string | null;
+  verifiedAt: string | null;
+  isConfigured: boolean;
+  secretsKeyConfigured: boolean;
+  warnings: string[];
+}
+
+export interface BoletoBatchItem {
+  chargeId: string;
+  unitIdentifier: string;
+  reason: string;
+}
+
+export interface BoletoReadiness {
+  canIssue: boolean;
+  settingsProblems: string[];
+  chargeProblems: BoletoBatchItem[];
+  readyCharges: number;
+}
+
+export interface BoletoBatchResult {
+  issued: number;
+  pending: number;
+  skipped: BoletoBatchItem[];
+  failed: BoletoBatchItem[];
+}
+
+export interface BoletoSyncResult {
+  checked: number;
+  changed: number;
+  paymentsRegistered: number;
+  errors: string[];
 }
 
 export interface ExpenseBreakdownLine {

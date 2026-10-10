@@ -33,7 +33,7 @@ export function BotaoDeReceber({
   const [estado, acao, enviando] = useActionState(receberCobranca, VAZIO);
 
   return (
-    <form action={acao} className="flex items-center justify-end gap-1.5">
+    <form action={acao} className="ml-auto flex max-w-[15.5rem] flex-wrap items-center justify-end gap-1.5">
       <input type="hidden" name="cobrancaId" value={cobrancaId} />
 
       {/* Editável porque pagamento parcial acontece: o morador paga a cota e
@@ -44,10 +44,19 @@ export function BotaoDeReceber({
         inputMode="decimal"
         aria-label="Valor recebido"
         defaultValue={valorSugerido.toFixed(2).replace('.', ',')}
-        className="w-24 py-1.5 text-right text-xs"
+        className="py-1.5 text-right text-xs"
+        // Largura fixa por estilo, nao por classe: o Input base traz w-full,
+        // e numa tabela larga ele ora encolhe ate esconder o valor, ora cresce
+        // por cima das colunas vizinhas.
+        style={{ width: '6rem', flex: '0 0 auto' }}
       />
 
-      <Select name="contaId" aria-label="Conta de destino" className="w-auto py-1.5 text-xs">
+      <Select
+        name="contaId"
+        aria-label="Conta de destino"
+        className="py-1.5 text-xs"
+        style={{ width: '8.5rem', flex: '0 0 auto' }}
+      >
         {contas.map((conta) => (
           <option key={conta.id} value={conta.id}>
             {conta.name}

@@ -74,6 +74,7 @@ export function menuPara(
         { href: '/cadastros/pessoas', rotulo: 'Pessoas' },
         { href: '/cadastros/fornecedores', rotulo: 'Fornecedores' },
         { href: '/cadastros/condominio', rotulo: 'Condomínio' },
+        ...(canManageCondominium(papel) ? [{ href: '/cadastros/banco', rotulo: 'Banco e boleto' }] : []),
       ],
     });
   }

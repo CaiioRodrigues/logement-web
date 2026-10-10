@@ -46,6 +46,11 @@ import type {
   UtilityBill,
   UtilityBillStatus,
   UtilityProvider,
+  BoletoBatchResult,
+  BoletoProvider,
+  BoletoReadiness,
+  BoletoSettings,
+  BoletoSyncResult,
 } from '@/lib/types';
 
 export { ApiError } from '@/lib/api/core';
@@ -294,6 +299,52 @@ export const api = {
     image: (id: string) => apiFetchBlob(`/api/cobrancas/${id}/imagem`),
 
     publicImage: (token: string) => apiFetchBlob(`/api/boleto/${token}/imagem`, { auth: false }),
+  },
+
+  /**
+   * Boleto registrado em banco. Falha do banco volta como 502 com o motivo
+   * que o banco deu, e `outcomeUnknown` quando a emissão pode ter passado.
+   */
+  boleto: {
+    settings: () => apiFetch<BoletoSettings>('/api/condominio/boleto'),
+
+    /** Campo secreto vazio mantém o que já está guardado; provider "None" apaga tudo. */
+    updateSettings: (body: {
+      provider: BoletoProvider;
+      sandbox: boolean;
+      clientId?: string | null;
+      clientSecret?: string | null;
+      certificatePem?: string | null;
+      privateKeyPem?: string | null;
+      certificatePkcs12Base64?: string | null;
+      certificatePassword?: string | null;
+      checkingAccount?: string | null;
+      daysOnAgenda: number;
+      instructions?: string | null;
+      bankAccountId?: string | null;
+    }) => apiFetch<BoletoSettings>('/api/condominio/boleto', { method: 'PUT', json: body }),
+
+    verify: () => apiFetch<BoletoSettings>('/api/condominio/boleto/verificar', { method: 'POST' }),
+
+    readiness: (cycleId: string) =>
+      apiFetch<BoletoReadiness>(`/api/cobrancas/ciclos/${cycleId}/boletos/prontidao`),
+
+    issueCycle: (cycleId: string) =>
+      apiFetch<BoletoBatchResult>(`/api/cobrancas/ciclos/${cycleId}/boletos`, { method: 'POST' }),
+
+    issue: (chargeId: string) => apiFetch<Charge>(`/api/cobrancas/${chargeId}/boleto`, { method: 'POST' }),
+
+    sync: (chargeId: string) =>
+      apiFetch<Charge>(`/api/cobrancas/${chargeId}/boleto/atualizar`, { method: 'POST' }),
+
+    syncOpen: () => apiFetch<BoletoSyncResult>('/api/cobrancas/boletos/atualizar', { method: 'POST' }),
+
+    cancel: (chargeId: string) =>
+      apiFetch<Charge>(`/api/cobrancas/${chargeId}/boleto/cancelar`, { method: 'POST' }),
+
+    /** Destrava a emissão que ficou sem resposta, depois de conferido no banco. */
+    release: (chargeId: string) =>
+      apiFetch<Charge>(`/api/cobrancas/${chargeId}/boleto/liberar`, { method: 'POST' }),
   },
 
   accountability: {
