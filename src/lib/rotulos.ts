@@ -1,5 +1,6 @@
 import type {
   BillingCycleStatus,
+  BoletoState,
   ChargeItemKind,
   ChargeStatus,
   EmailKind,
@@ -18,6 +19,15 @@ export const STATUS_DA_COBRANCA: Record<ChargeStatus, { texto: string; tom: Tone
   Paid: { texto: 'Paga', tom: 'positive' },
   Overdue: { texto: 'Vencida', tom: 'negative' },
   Cancelled: { texto: 'Cancelada', tom: 'neutral' },
+};
+
+/** Estado do boleto no banco, do ponto de vista de quem acompanha a cobrança. */
+export const STATUS_DO_BOLETO: Record<BoletoState, { texto: string; tom: Tone }> = {
+  Pending: { texto: 'Registrando', tom: 'warning' },
+  Registered: { texto: 'Registrado', tom: 'brand' },
+  Paid: { texto: 'Pago no banco', tom: 'positive' },
+  Cancelled: { texto: 'Cancelado', tom: 'neutral' },
+  Expired: { texto: 'Expirado', tom: 'neutral' },
 };
 
 export const STATUS_DA_DESPESA: Record<ExpenseStatus, { texto: string; tom: Tone }> = {

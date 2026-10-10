@@ -1,3 +1,4 @@
+import { LinhaDigitavel } from '@/components/cobranca/linha-digitavel';
 import { PixCopiaECola } from '@/components/cobranca/pix';
 import { Badge, Card, Td, Table, Th } from '@/components/ui';
 import { competenceLabel, date, money } from '@/lib/format';
@@ -108,6 +109,10 @@ export function CartaoDeCobranca({
       </Table>
 
       <div className="space-y-4 px-5 py-4">
+        {!quitada && cobranca.slip?.state === 'Registered' && cobranca.slip.digitableLine ? (
+          <LinhaDigitavel linha={cobranca.slip.digitableLine} />
+        ) : null}
+
         {!quitada && cobranca.pixPayload ? (
           <PixCopiaECola payload={cobranca.pixPayload} />
         ) : null}

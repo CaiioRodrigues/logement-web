@@ -5,10 +5,11 @@ import { notFound } from 'next/navigation';
 
 import { ApiError, api } from '@/lib/api';
 import { requireAccountsAccess } from '@/lib/dal';
-import { canManageFinance } from '@/lib/roles';
+import { canManageCondominium, canManageFinance } from '@/lib/roles';
 import { competenceLabel, date, money } from '@/lib/format';
 import { STATUS_DA_COBRANCA, STATUS_DO_CICLO } from '@/lib/rotulos';
 import { linkDeWhatsApp, mensagemDoBoleto } from '@/lib/whatsapp';
+import { AcoesDoBoleto, PainelDoBoleto } from '@/app/(portal)/cobrancas/[cicloId]/boleto';
 import { EnvioComImagem } from '@/app/(portal)/cobrancas/[cicloId]/envio';
 import {
   BotaoDeEstornar,
@@ -34,13 +35,16 @@ export default async function PaginaDosBoletosDoCiclo({
 
   const { cicloId } = await params;
 
-  const [ciclo, condominio, caixa] = await Promise.all([
+  const [ciclo, condominio, caixa, prontidao] = await Promise.all([
     api.billing.cycle(cicloId).catch((erro) => {
       if (erro instanceof ApiError && erro.status === 404) return null;
       throw erro;
     }),
     api.condominium.get(),
     api.cash.position(),
+    // A prontidao nao fala com o banco: e barata, e uma falha nela nao pode
+    // derrubar a lista de envio, que funciona sem boleto bancario.
+    api.boleto.readiness(cicloId).catch(() => null),
   ]);
 
   if (!ciclo) notFound();
@@ -58,6 +62,14 @@ export default async function PaginaDosBoletosDoCiclo({
   const podeReceber = canManageFinance(sessao.activeRole);
   const contasAtivas = caixa.accounts.filter((conta) => conta.isActive);
 
+  const podeEmitirBoleto = canManageCondominium(sessao.activeRole);
+  const bancoPronto = prontidao !== null && prontidao.settingsProblems.length === 0;
+  const temBoletoVivo = cobrancas.some(
+    (c) => c.slip?.state === 'Registered' || c.slip?.state === 'Pending',
+  );
+  const usaBoleto = bancoPronto || cobrancas.some((c) => c.slip);
+  const bloqueios = new Map(prontidao?.chargeProblems.map((p) => [p.chargeId, p.reason]) ?? []);
+
   const situacao = STATUS_DO_CICLO[ciclo.status];
   const semTelefone = cobrancas.filter((c) => !linkDeWhatsApp(c.payerPhone, 'x')).length;
 
@@ -74,6 +86,26 @@ export default async function PaginaDosBoletosDoCiclo({
           ← Voltar para cobranças
         </Link>
       </div>
+
+      {prontidao && cobrancas.length > 0 && (usaBoleto || podeEmitirBoleto) ? (
+        <Card className="mb-6">
+          <CardHeader
+            title="Boleto bancário"
+            description={
+              bancoPronto && prontidao.readyCharges > 0
+                ? `${prontidao.readyCharges} cobrança(s) prontas para registrar no banco. Pago o boleto, a baixa entra no caixa sozinha.`
+                : 'Registrado no banco: pagável em qualquer banco ou lotérica, com baixa automática no caixa.'
+            }
+          />
+          <PainelDoBoleto
+            cicloId={cicloId}
+            prontidao={prontidao}
+            podeEmitir={podeEmitirBoleto}
+            podeAtualizar={podeReceber}
+            temBoletoVivo={temBoletoVivo}
+          />
+        </Card>
+      ) : null}
 
       {cobrancas.length === 0 ? (
         <Card>
@@ -109,6 +141,7 @@ export default async function PaginaDosBoletosDoCiclo({
                 <Th>Morador</Th>
                 <Th numeric>Valor</Th>
                 <Th>Situação</Th>
+                {usaBoleto ? <Th numeric>Boleto</Th> : null}
                 <Th numeric>Enviar</Th>
                 {podeReceber ? <Th numeric>Receber</Th> : null}
               </tr>
@@ -118,6 +151,8 @@ export default async function PaginaDosBoletosDoCiclo({
                 const estado = STATUS_DA_COBRANCA[cobranca.status];
                 const linkDoBoleto = `${origem}/boleto/${cobranca.publicToken}`;
 
+                const boletoVivo = cobranca.slip?.state === 'Registered';
+
                 const mensagem = mensagemDoBoleto({
                   condominio: condominio.name,
                   unidade: cobranca.unitIdentifier,
@@ -126,6 +161,7 @@ export default async function PaginaDosBoletosDoCiclo({
                   valor: money(cobranca.totalWithLateCharges),
                   morador: cobranca.payerName,
                   link: linkDoBoleto,
+                  linhaDigitavel: boletoVivo ? cobranca.slip?.digitableLine : null,
                 });
 
                 const whatsapp = linkDeWhatsApp(cobranca.payerPhone, mensagem);
@@ -140,6 +176,19 @@ export default async function PaginaDosBoletosDoCiclo({
                     <Td>
                       <Badge tone={estado.tom}>{estado.texto}</Badge>
                     </Td>
+                    {usaBoleto ? (
+                      <Td numeric>
+                        <AcoesDoBoleto
+                          cobrancaId={cobranca.id}
+                          boleto={cobranca.slip}
+                          statusDaCobranca={cobranca.status}
+                          bancoPronto={bancoPronto}
+                          podeEmitir={podeEmitirBoleto}
+                          podeAtualizar={podeReceber}
+                          bloqueio={bloqueios.get(cobranca.id)}
+                        />
+                      </Td>
+                    ) : null}
                     <Td numeric>
                       <div className="flex items-center justify-end gap-3 whitespace-nowrap">
                         <a
@@ -175,6 +224,20 @@ export default async function PaginaDosBoletosDoCiclo({
                             Quitada ou parcial ganha o estorno no mesmo lugar. */}
                         {cobranca.status === 'Cancelled' ? (
                           <span className="text-xs text-ink-subtle">—</span>
+                        ) : boletoVivo && cobranca.status !== 'Paid' ? (
+                          // Boleto vivo no banco: receber por fora deixaria um
+                          // titulo pagavel para a mesma cobranca. Quem recebeu
+                          // em dinheiro cancela o boleto antes.
+                          <span
+                            className="text-xs text-ink-muted"
+                            title="Pago o boleto, a baixa entra sozinha. Se o morador pagou por fora, cancele o boleto antes de receber."
+                          >
+                            baixa automática
+                          </span>
+                        ) : cobranca.slip?.state === 'Paid' && cobranca.status === 'Paid' ? (
+                          // Baixa confirmada pelo banco nao se estorna aqui: o
+                          // banco continuaria dizendo que foi pago.
+                          <span className="text-xs text-ink-muted">pago no banco</span>
                         ) : cobranca.status === 'Paid' ? (
                           <BotaoDeEstornar cobrancaId={cobranca.id} />
                         ) : (
